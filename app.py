@@ -131,7 +131,7 @@ def decrypt_file(encrypted_data: bytes, key_input: str) -> tuple[bytes, bytes]:
     """Decrypt file with a derived key."""
     try:
         logger.debug(f"Decrypting file, input size: {len(encrypted_data)} bytes")
-        if len(combined) < 80:
+        if len(encrypted_data) < 80:
             raise ValueError("Invalid file format")
         salt, iv, stored_hmac, encrypted = encrypted_data[:16], encrypted_data[16:32], encrypted_data[32:64], encrypted_data[64:]
         aes_key, _ = derive_key(key_input, salt)
