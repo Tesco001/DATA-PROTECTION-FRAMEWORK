@@ -1,4 +1,3 @@
-```python
 import os
 import base64
 import hashlib
@@ -178,4 +177,3 @@ def download_file(filename):
 
 if __name__ == '__main__':
     app.run(debug=True)
-```
