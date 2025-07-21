@@ -1,0 +1,84 @@
+```css
+body {
+  background: #f0f8ff;
+  font-family: 'Segoe UI', sans-serif;
+  color: #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background: #ffffff;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 30px;
+  width: 90%;
+  max-width: 500px;
+}
+
+textarea, input[type="password"], input[type="text"], input[type="file"], select, button {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+textarea {
+  height: 100px;
+  resize: none;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+  border: none;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+.result-box {
+  position: relative;
+}
+
+.copy-btn {
+  background-color: #008CBA;
+  color: white;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 5px;
+  float: right;
+}
+
+.copy-btn:hover {
+  background-color: #0072a1;
+}
+
+a {
+  color: #008CBA;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.key-mode {
+  margin-bottom: 10px;
+}
+
+.key-mode label {
+  margin-right: 15px;
+}
+```
