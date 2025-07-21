@@ -3,7 +3,7 @@ import base64
 import hashlib
 import hmac
 import logging
-from flask import Flask, render_template, request, send_file, after_this_request, abort
+from flask import Flask, render_template, request, send_file, abort
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
@@ -20,8 +20,13 @@ app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['PROCESSED_FOLDER'] = 'processed'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+# Ensure folders exist
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+    logger.debug(f"Created directories: {app.config['UPLOAD_FOLDER']}, {app.config['PROCESSED_FOLDER']}")
+except Exception as e:
+    logger.error(f"Failed to create directories: {str(e)}")
 
 def derive_key(key_input: str, salt: bytes = None) -> tuple[bytes, bytes]:
     """Derive a 32-byte AES key from a user-provided key/password using PBKDF2HMAC."""
@@ -178,17 +183,6 @@ def handle_file():
                     logger.debug(f"Decrypted file written to: {output_path}")
                 
                 result_file = output_path
-                
-                # Delayed cleanup to ensure file is available for download
-                @after_this_request
-                def cleanup(response):
-                    try:
-                        if os.path.exists(output_path):
-                            logger.debug(f"Cleaning up file: {output_path}")
-                            os.remove(output_path)
-                    except Exception as e:
-                        logger.error(f"Cleanup failed: {str(e)}")
-                    return response
                 
             except Exception as e:
                 logger.error(f"File operation error: {str(e)}")
