@@ -3,6 +3,8 @@ import base64
 import hashlib
 import hmac
 import logging
+import time
+import threading
 from flask import Flask, render_template, request, send_file, abort
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -19,6 +21,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['PROCESSED_FOLDER'] = 'processed'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['CLEANUP_INTERVAL'] = 120  # 2 minutes in seconds
 
 # Ensure folders exist
 try:
@@ -27,6 +30,26 @@ try:
     logger.debug(f"Created directories: {app.config['UPLOAD_FOLDER']}, {app.config['PROCESSED_FOLDER']}")
 except Exception as e:
     logger.error(f"Failed to create directories: {str(e)}")
+
+def cleanup_old_files():
+    """Periodically clean up files older than CLEANUP_INTERVAL in processed folder."""
+    while True:
+        try:
+            now = time.time()
+            for filename in os.listdir(app.config['PROCESSED_FOLDER']):
+                file_path = os.path.join(app.config['PROCESSED_FOLDER'], filename)
+                if os.path.isfile(file_path):
+                    file_age = now - os.path.getmtime(file_path)
+                    if file_age > app.config['CLEANUP_INTERVAL']:
+                        os.remove(file_path)
+                        logger.debug(f"Cleaned up old file: {file_path}")
+        except Exception as e:
+            logger.error(f"Cleanup error: {str(e)}")
+        time.sleep(app.config['CLEANUP_INTERVAL'])
+
+# Start cleanup thread
+cleanup_thread = threading.Thread(target=cleanup_old_files, daemon=True)
+cleanup_thread.start()
 
 def derive_key(key_input: str, salt: bytes = None) -> tuple[bytes, bytes]:
     """Derive a 32-byte AES key from a user-provided key/password using PBKDF2HMAC."""
@@ -75,10 +98,13 @@ def decrypt_text(cipher_text: str, key_input: str) -> str:
         aes_key, _ = derive_key(key_input, salt)
         computed_hmac = compute_hmac(encrypted, aes_key)
         if not hmac.compare_digest(stored_hmac, computed_hmac):
-            raise ValueError("Integrity check failed: Data tampered")
+            raise ValueError("Incorrect key/password provided")
         cipher = AES.new(aes_key, AES.MODE_CBC, iv)
         decrypted = unpad(cipher.decrypt(encrypted), AES.block_size)
         return decrypted.decode()
+    except ValueError as e:
+        logger.error(f"Text decryption failed: {str(e)}")
+        raise ValueError(str(e))
     except Exception as e:
         logger.error(f"Text decryption failed: {str(e)}")
         raise ValueError(f"Decryption failed: {str(e)}")
@@ -105,19 +131,22 @@ def decrypt_file(encrypted_data: bytes, key_input: str) -> tuple[bytes, bytes]:
     """Decrypt file with a derived key."""
     try:
         logger.debug(f"Decrypting file, input size: {len(encrypted_data)} bytes")
-        if len(encrypted_data) < 80:
+        if len(combined) < 80:
             raise ValueError("Invalid file format")
         salt, iv, stored_hmac, encrypted = encrypted_data[:16], encrypted_data[16:32], encrypted_data[32:64], encrypted_data[64:]
         aes_key, _ = derive_key(key_input, salt)
         computed_hmac = compute_hmac(encrypted, aes_key)
         if not hmac.compare_digest(stored_hmac, computed_hmac):
-            raise ValueError("Integrity check failed: Data tampered")
+            raise ValueError("Incorrect key/password provided")
         cipher = AES.new(aes_key, AES.MODE_CBC, iv)
         decrypted = unpad(cipher.decrypt(encrypted), AES.block_size)
         ext = decrypted[:16].rstrip(b'\0').decode()
         content = decrypted[16:]
         logger.debug(f"File decrypted, extension: {ext}, content size: {len(content)} bytes")
         return ext, content
+    except ValueError as e:
+        logger.error(f"File decryption failed: {str(e)}")
+        raise ValueError(str(e))
     except Exception as e:
         logger.error(f"File decryption failed: {str(e)}")
         raise ValueError(f"File decryption failed: {str(e)}")
